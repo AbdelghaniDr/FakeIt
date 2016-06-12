@@ -2,7 +2,7 @@
 /*
  *  FakeIt - A Simplified C++ Mocking Framework
  *  Copyright (c) Eran Pe'er 2013
- *  Generated: 2016-05-12 09:58:05.432525
+ *  Generated: 2016-05-12 09:58:05.323377
  *  Distributed under the MIT License. Please refer to the LICENSE file at:
  *  https://github.com/eranpeer/FakeIt
  */
@@ -10,7 +10,7 @@
 #ifndef fakeit_h__
 #define fakeit_h__
 
-
+#include <QTest>
 
 #include <functional>
 #include <memory>
@@ -1081,95 +1081,70 @@ namespace fakeit {
 
     };
 }
-#if defined (__GNUG__) || _MSC_VER >= 1900
-#define THROWS noexcept(false)
-#define NO_THROWS noexcept(true)
-#elif defined (_MSC_VER)
-#define THROWS throw(...)
-#define NO_THROWS
-#endif
 
 namespace fakeit {
 
-class TpUnitAdapter: public EventHandler {
-	EventFormatter& _formatter;
-
-    std::string formatLineNumner(std::string file, int num){
-#ifndef __GNUG__
-        return file + std::string("(") + std::to_string(num) + std::string(")");
-#else
-        return file + std::string(":") + std::to_string(num);
-#endif
-    }
-
+class QTestAdapter: public EventHandler {
+    EventFormatter& _formatter;
 public:
 
-	class AssertionException: public std::exception{
-        std::string _msg;
-	public:
-		AssertionException(std::string msg)
-				: _msg(msg) {
-		}
+    virtual ~QTestAdapter() = default;
+    QTestAdapter(EventFormatter& formatter):_formatter(formatter){}
 
-        const char* what() const NO_THROWS override{
-            return _msg.c_str();
-        }
-
-        virtual ~AssertionException() NO_THROWS {}
-	};
-
-	virtual ~TpUnitAdapter() = default;
-	TpUnitAdapter(EventFormatter& formatter):_formatter(formatter){}
-
-	virtual void handle(const UnexpectedMethodCallEvent& e) {
-		throw AssertionException(_formatter.format(e));
-	}
-
-	virtual void handle(const SequenceVerificationEvent& e) {
-        std::string format(formatLineNumner(e.file(), e.line()) + ": " + _formatter.format(e));
-        throw AssertionException(format);
-	}
-
-	virtual void handle(const NoMoreInvocationsVerificationEvent& e) {
-        std::string format(formatLineNumner(e.file(), e.line()) + ": " + _formatter.format(e));
-        throw AssertionException(format);
+    virtual void handle(const UnexpectedMethodCallEvent& e) override
+    {
+        auto str = _formatter.format(e);
+        QFAIL(str.c_str());
     }
+
+    virtual void handle(const SequenceVerificationEvent& e) override
+    {
+        auto str = _formatter.format(e);
+        QFAIL(str.c_str());
+    }
+
+    virtual void handle(const NoMoreInvocationsVerificationEvent& e) override
+    {
+        auto str = _formatter.format(e);
+        QFAIL(str.c_str());
+    }
+
 };
 
-class TpUnitFakeit: public DefaultFakeit {
+class QTestFakeit: public DefaultFakeit {
 
 public:
-	virtual ~TpUnitFakeit() = default;
+    virtual ~QTestFakeit() = default;
 
-	TpUnitFakeit()
-			: _formatter(), _tpunitAdapter(*this) {
-	}
+    QTestFakeit()
+            : _formatter(), _qtestAdapter(*this) {
+    }
 
-	static TpUnitFakeit &getInstance() {
-		static TpUnitFakeit instance;
-		return instance;
-	}
+    static QTestFakeit &getInstance() {
+        static QTestFakeit instance;
+        return instance;
+    }
 
 protected:
 
-	fakeit::EventHandler &accessTestingFrameworkAdapter() override {
-		return _tpunitAdapter;
-	}
+    fakeit::EventHandler &accessTestingFrameworkAdapter() override {
+        return _qtestAdapter;
+    }
 
-	EventFormatter &accessEventFormatter() override {
-		return _formatter;
-	}
+    EventFormatter &accessEventFormatter() override {
+        return _formatter;
+    }
 
 private:
 
-	DefaultEventFormatter _formatter;
-	TpUnitAdapter _tpunitAdapter;
+    DefaultEventFormatter _formatter;
+    QTestAdapter _qtestAdapter;
 
 };
 
 }
 
-static fakeit::DefaultFakeit& Fakeit = fakeit::TpUnitFakeit::getInstance();
+static fakeit::DefaultFakeit& Fakeit = fakeit::QTestFakeit::getInstance();
 
 
 #include <type_traits>
